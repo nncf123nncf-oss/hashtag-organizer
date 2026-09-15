@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="文章からハッシュタグを抽出し、重複なしで整理するツールです。">
+  <title>ハッシュタグ整理ツール</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --background: #E2EFDC;
+      --surface: #FFFFFF;
+      --header-text: #2C3B26;
+      --text: #233020;
+      --muted: #5F6E58;
+      --accent: #8C5A2F;
+      --danger: #B3261E;
+      --border: #D3DDC9;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    .page {
+      width: min(100% - 32px, 560px);
+      margin: 0 auto;
+      padding: 32px 0 40px;
+    }
+
+    .page-header { margin-bottom: 24px; }
+
+    h1 {
+      margin: 0;
+      color: var(--header-text);
+      font-size: 18px;
+      line-height: 1.4;
+    }
+
+    .lead {
+      margin: 8px 0 0;
+      color: var(--header-text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .tool {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    textarea {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: 16px;
+      line-height: 1.5;
+      resize: vertical;
+    }
+
+    textarea::placeholder { color: var(--muted); }
+
+    textarea:focus-visible,
+    button:focus-visible {
+      outline: 3px solid rgb(140 90 47 / 30%);
+      outline-offset: 2px;
+    }
+
+    .results {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .count {
+      margin: 0;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.4;
+      white-space: normal;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .tag-list:empty { display: none; }
+
+    .tag {
+      max-width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #F6FAF3;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.4;
+      overflow-wrap: break-word;
+    }
+
+    .copy-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    button {
+      flex: 1 1 200px;
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: #FFFFFF;
+      font: inherit;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.4;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      border-color: var(--border);
+      background: var(--border);
+      color: var(--muted);
+      cursor: not-allowed;
+    }
+
+    button:not(:disabled):active { transform: translateY(1px); }
+
+    .copy-status {
+      min-height: 20px;
+      margin: 8px 0 0;
+      color: var(--accent);
+      font-size: 14px;
+      line-height: 1.4;
+      white-space: normal;
+    }
+
+    .copy-status.is-error { color: var(--danger); }
+
+    @media (max-width: 480px) {
+      .page { padding-top: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <h1>ハッシュタグ整理ツール</h1>
+      <p class="lead">文章を貼り付けると、#タグを重複なしで一覧にします</p>
+    </header>
+
+    <section class="tool" aria-label="ハッシュタグの抽出と整理">
+      <label for="source-text">文章を貼り付ける</label>
+      <textarea id="source-text" rows="8" placeholder="例: #カフェ巡り で見つけた #cafe2026 を紹介します。 #カフェ巡り"></textarea>
+
+      <section class="results" aria-labelledby="result-count">
+        <p class="count" id="result-count" aria-live="polite">#タグが見つかりませんでした</p>
+        <ul class="tag-list" id="tag-list" aria-label="抽出したハッシュタグ"></ul>
+      </section>
+
+      <div class="copy-actions" aria-label="コピー形式を選択">
+        <button id="copy-space" type="button" disabled>スペース区切りでコピー</button>
+        <button id="copy-line" type="button" disabled>改行区切りでコピー</button>
+      </div>
+      <p class="copy-status" id="copy-status" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script>
+    const sourceText = document.querySelector('#source-text');
+    const resultCount = document.querySelector('#result-count');
+    const tagList = document.querySelector('#tag-list');
+    const copySpaceButton = document.querySelector('#copy-space');
+    const copyLineButton = document.querySelector('#copy-line');
+    const copyStatus = document.querySelector('#copy-status');
+    let tags = [];
+
+    function extractTags(text) {
+      const matches = text.match(/#[^\s、。,.!?！？#]+/g) ?? [];
+      return [...new Set(matches)];
+    }
+
+    function renderTags() {
+      tags = extractTags(sourceText.value);
+      tagList.replaceChildren();
+      copyStatus.textContent = '';
+      copyStatus.classList.remove('is-error');
+      copySpaceButton.disabled = tags.length === 0;
+      copyLineButton.disabled = tags.length === 0;
+
+      if (tags.length === 0) {
+        resultCount.textContent = '#タグが見つかりませんでした';
+        return;
+      }
+
+      resultCount.textContent = `${tags.length}件のタグを検出しました`;
+      const fragment = document.createDocumentFragment();
+      tags.forEach((tag) => {
+        const item = document.createElement('li');
+        item.className = 'tag';
+        item.textContent = tag;
+        fragment.append(item);
+      });
+      tagList.append(fragment);
+    }
+
+    async function copyTags(separator, label) {
+      copyStatus.classList.remove('is-error');
+      try {
+        await navigator.clipboard.writeText(tags.join(separator));
+        copyStatus.textContent = `${label}でコピーしました`;
+      } catch {
+        copyStatus.textContent = 'コピーできませんでした。ブラウザの権限を確認してください。';
+        copyStatus.classList.add('is-error');
+      }
+    }
+
+    sourceText.addEventListener('input', renderTags);
+    copySpaceButton.addEventListener('click', () => copyTags(' ', 'スペース区切り'));
+    copyLineButton.addEventListener('click', () => copyTags('\n', '改行区切り'));
+  </script>
+</body>
+</html>
